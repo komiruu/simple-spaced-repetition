@@ -1,135 +1,116 @@
-# Plugin de révisions espacées — intégration
+# Révisions espacées
 
-Le code est validé : compilé (`tsc -noEmit -skipLibCheck`) contre les vrais
-types Obsidian, bundlé avec esbuild comme le fait le script de build du
-sample-plugin, et le parseur/sérialiseur du fichier de sauvegarde est
-couvert par des tests automatisés (round-trip, résilience à un fichier
-"sale", logique de complétion, et surtout non-destruction d'un fichier
-existant) avant livraison.
+*(English summary below the French guide.)*
 
-## 1. Copier les fichiers
+Un planificateur de révisions espacées pour Obsidian : marquez un cours ou
+une section de cours que vous maîtrisez déjà, et le plugin vous rappelle
+d'y rejeter un œil à intervalles croissants (par exemple J+2, J+7, J+20,
+J+60...), directement depuis un panneau dans la barre latérale.
 
-Copiez ces 8 fichiers **à la racine** de votre clone de `obsidian-sample-plugin`
-(à côté du `main.ts` existant, en écrasant celui-ci) :
+## Pourquoi pas simplement Anki ?
+
+Ce plugin **n'est pas** un outil d'apprentissage actif comme Anki : pas de
+flashcards, pas de test de connaissances, pas d'algorithme d'espacement
+individualisé par carte. Son seul objectif est plus modeste : **éviter
+d'oublier** ce que vous avez déjà compris, en vous rappelant régulièrement
+de relire un cours ou une fiche que vous maîtrisez.
+
+Il a été pensé à l'origine pour des étudiants de classes préparatoires, qui
+ont énormément de cours à absorber et peu de temps pour de la répétition
+active carte par carte sur chaque notion. L'idée : dès qu'un chapitre est
+bien maîtrisé, on le marque une fois, et le plugin planifie tout seul
+quelques relectures espacées dans le temps — un rappel léger, pas un
+entraînement.
+
+## Comment ça marche
+
+- Vous avez terminé un chapitre, une fiche de révision, ou un exercice
+  représentatif d'un chapitre ? Marquez le **header** correspondant pour
+  un rappel "mineur" : clic droit dessus en mode édition → *Marquer pour
+  rappel espacé*.
+- Vous avez terminé un cours entier ? Marquez le **fichier entier** pour un
+  rappel "majeur" : bouton en haut du panneau de planning.
+- Le plugin planifie alors automatiquement plusieurs relectures espacées
+  dans le temps (par défaut : J+2, J+7, J+20, J+60, J+180 pour un rappel
+  mineur ; J+10, J+30, J+90, J+270 pour un rappel majeur — entièrement
+  personnalisable dans les paramètres).
+- Ouvrez le panneau (icône calendrier dans la barre latérale) pour voir
+  toutes les relectures à venir, jour par jour.
+- **Cochez** une relecture une fois faite (case à droite de chaque ligne).
+  Décochez si besoin.
+- **Glissez-déposez** une relecture sur un autre jour pour la reporter.
+- **Ctrl/Cmd + clic** sur un élément pour l'ouvrir dans un nouvel onglet,
+  simple clic pour l'ouvrir dans l'onglet actuel.
+- Les relectures passées non cochées sont regroupées dans une section
+  "Non complété" en haut du panneau, pour ne rien perdre de vue.
+
+## Catégories personnalisables
+
+Dans les paramètres, créez autant de catégories que vous voulez (par
+défaut : Mineure et Majeure), chacune avec :
+
+- un nom,
+- une lettre unique affichée devant le numéro de répétition dans le
+  planning (ex. `m3` = 3ᵉ répétition d'une catégorie "Mineure"),
+- une liste de délais en jours (J+...) — ajoutez, retirez, modifiez-les
+  librement.
+
+## Le fichier de sauvegarde
+
+Toutes les relectures programmées sont stockées dans un simple fichier
+Markdown de votre vault (par défaut `Revisions/planning.md`, modifiable
+dans les paramètres). Vous n'avez normalement jamais besoin d'y toucher,
+mais rien ne vous empêche de l'ouvrir et de corriger une date ou une
+catégorie directement si besoin — chaque relecture y apparaît sous cette
+forme :
 
 ```
-main.ts
-types.ts
-utils.ts
-scheduler.ts
-store.ts
-settings.ts
-view.ts
-modal.ts
-styles.css
+[[Nom de la note#Nom du header]]
+Added to Mineure on the 01/08/2026
+- 2 to 10/08/2026
+> Completed until J+20
 ```
 
-Aucun changement n'est nécessaire dans `esbuild.config.mjs` ou `tsconfig.json`.
+- La première ligne est un lien Obsidian classique vers la note (ou la
+  note et le header) concerné.
+- La deuxième ligne indique la catégorie et la date à laquelle vous avez
+  marqué cet élément.
+- Une ligne commençant par `-` signale qu'une relecture précise a été
+  déplacée manuellement à une nouvelle date (glisser-déposer).
+- La ligne commençant par `>` indique jusqu'où (en J+) les relectures ont
+  été cochées comme faites.
 
-## 2. manifest.json
+## Langue
 
-Assurez-vous que `"isDesktopOnly": false` est présent.
+L'interface s'affiche en français si Obsidian est configuré en français,
+en anglais sinon.
 
-## 3. Build
+## Crédits
 
-```bash
-npm install
-npm run dev     # ou "npm run build" pour la version de prod
-```
+Idée, design et fonctionnement pensés par **Komiru**. Intégralement codé
+par **Claude** (Anthropic).
 
-## Ce qui a changé dans cette révision
+---
 
-- **Correction : le renommage de heading peut être suivi automatiquement.**
-  Mon README précédent disait que non — c'est faux : c'est le cas si vous
-  utilisez la commande dédiée d'Obsidian "Renommer le titre" (clic droit sur
-  le heading, ou la commande associée) plutôt que d'éditer le texte
-  directement. Dans ce cas Obsidian met aussi à jour le lien dans notre
-  fichier de sauvegarde, comme pour un renommage de fichier.
+## English summary
 
-- **Lien moins voyant.** L'entrée n'est plus préfixée par `## ` (qui
-  s'affichait en gros titre) : elle commence directement par
-  `[[Note#Header]]`, une ligne de texte normale. Une entrée est détectée dès
-  qu'une ligne contient un wikilink en début de ligne (avec ou sans `#...`
-  devant, pour rester compatible si vous ajoutez vous-même un niveau de
-  titre).
+A spaced-review *planner* for Obsidian — not a flashcard/learning tool like
+Anki. Mark a note or heading you already understand, and the plugin
+schedules a handful of follow-up reminders at growing intervals (e.g. J+2,
+J+7, J+20, J+60...) in a simple sidebar planning view, so you know what to
+skim again before you forget it.
 
-- **Complétion : "watermark" en J+, plus un numéro de répétition.** Le
-  problème que vous avez soulevé était réel : un numéro de répétition (1,
-  2, 3...) se décale si vous supprimez un J+ intermédiaire dans une
-  catégorie, et la case cochée pointerait alors sur la mauvaise répétition.
-  Solution retenue : `> Completed until J+<n>` — on enregistre le J+
-  (délai en jours) de la répétition la plus tardive cochée, pas sa
-  position. Toute répétition dont le J+ est ≤ cette valeur est considérée
-  faite. Concrètement :
-  - Cocher `m3` (ex. J+20) coche aussi automatiquement `m1` et `m2` s'ils
-    ont un J+ inférieur (logique : si vous avez fait la révision à J+20,
-    les précédentes sont forcément faites aussi).
-  - Supprimer ou ajouter un J+ intermédiaire ailleurs dans la liste ne
-    déplace rien : le watermark reste attaché à la valeur J+20 elle-même,
-    pas à une position dans le tableau.
-  - Décocher une répétition ramène le watermark juste en dessous de son
-    J+, ce qui décoche aussi tout ce qui était après elle.
-  - J'ai choisi de baser ça sur le J+ (le délai configuré) plutôt que sur
-    la date affichée : un déplacement par glisser-déposer ne change que la
-    date affichée, pas le J+ d'origine, donc déplacer une révision ne
-    décoche jamais rien par accident. Testé avec suppression d'un J+
-    intermédiaire en cours de route : la case cochée reste correcte.
+Built for students who already understand their material and just want a
+lightweight, distraction-free way to keep it fresh — not to learn it from
+scratch. Mark a heading for a "minor" reminder (right-click it in edit
+mode) once you've mastered a chapter or worked through a representative
+exercise; mark the whole file for a "major" reminder once you've finished
+an entire course module. Everything - categories, their letter, and their
+J+delays - is configurable in settings. Check off, drag-and-drop to
+reschedule, or Ctrl/Cmd-click to open in a new tab.
 
-- **Protection anti-écrasement du fichier.** C'est le point le plus
-  important : plus aucun code du plugin ne peut effacer du contenu qui ne
-  lui appartient pas.
-  - Toutes les données du plugin sont maintenant encadrées par deux
-    marqueurs invisibles en mode lecture (`<!-- spaced-review-plugin:start
-    -->` / `... :end -->`) dans le fichier de sauvegarde.
-  - À l'écriture : si les marqueurs existent déjà, **seul** le texte entre
-    eux est remplacé — tout ce qui est avant/après (vos propres notes) est
-    conservé tel quel. S'ils n'existent pas encore (fichier neuf, ou note
-    existante que vous pointez pour la première fois), le bloc du plugin
-    est **ajouté à la fin**, jamais en écrasant.
-  - Résultat concret sur votre cas : pointer le chemin du fichier de
-    sauvegarde vers une note déjà existante n'efface plus son contenu — le
-    plugin ajoute ses infos à la fin, puis ne touchera plus que sa propre
-    section aux écritures suivantes.
-  - Le champ "Fichier de sauvegarde" dans les paramètres ne valide
-    maintenant qu'à la perte du focus (pas à chaque frappe), pour éviter
-    d'écrire accidentellement dans un chemin partiel pendant que vous
-    tapez. Au changement de chemin, le plugin relit d'abord ce qu'il
-    reconnaît déjà à ce nouvel emplacement (s'il y en a) avant de continuer
-    à écrire dessus.
-  - Testé avec un faux vault en mémoire : écrire deux fois de suite dans
-    une note contenant déjà du texte personnel préserve ce texte intégralement.
+Reminders are stored as plain Markdown in a vault file of your choosing,
+readable and editable by hand if you ever need to.
 
-- **Rechargement automatique** (déjà en place, toujours actif) : le plugin
-  écoute les modifications du fichier de sauvegarde et recharge les items
-  en mémoire dès qu'il change sur le disque, plus un bouton ↻ pour forcer
-  une relecture manuelle, plus un rechargement systématique à l'ouverture
-  du panneau.
-
-## Utilisation
-
-- **Marquer un fichier entier** : bouton "Marquer ce fichier pour rappel"
-  en haut du panneau, avec le menu déroulant de catégorie à côté.
-- **Marquer un header** : en mode édition, clic droit sur la ligne du
-  header → "Marquer pour rappel espacé".
-- **Planning** : badge `m3` = catégorie "m" (Mineure), 3ᵉ répétition.
-- **Cocher/décocher** une répétition : case à cocher à droite de chaque
-  ligne (voir la logique de watermark ci-dessus).
-- **Déplacer une révision** : glisser-déposer sur un autre jour.
-- **Ouvrir la note** : cliquer (sans glisser) un élément.
-- **Supprimer un suivi** : clic droit → "Supprimer ce suivi de révision".
-- **Recharger** : icône ↻ en haut du panneau.
-
-## Limites connues
-
-- Renommer le **texte** d'un heading directement (sans passer par la
-  commande dédiée d'Obsidian) n'est pas suivi automatiquement : le lien
-  devient obsolète. Le fichier restant un Markdown normal, vous pouvez
-  corriger la ligne `[[...]]` à la main sans perdre la date ni l'historique
-  qui suivent juste en dessous.
-- Supprimer une catégorie encore utilisée par des items existants les rend
-  orphelins (disparaissent du planning) plutôt que de les réassigner
-  automatiquement — renommez plutôt que de supprimer si des révisions sont
-  en cours dessus.
-- Si le fichier de sauvegarde est modifié en même temps par deux sources à
-  la fraction de seconde près (vous tapez pendant que le plugin écrit),
-  c'est le dernier à écrire qui gagne, comme pour tout fichier partagé.
+**Credits:** designed and specified by **Komiru**, entirely coded by
+**Claude** (Anthropic).

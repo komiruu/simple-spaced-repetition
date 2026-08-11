@@ -2,7 +2,8 @@ import { ItemView, WorkspaceLeaf, DropdownComponent, Notice, Menu, TFile, Markdo
 import type SpacedReviewPlugin from './main';
 import { buildPlanning } from './scheduler';
 import { Occurrence } from './types';
-import { todayISO, addDays, frDayLabel, frDateShort, escapeRegExp } from './utils';
+import { todayISO, addDays, dayLabel, formatDateShort, escapeRegExp } from './utils';
+import { t, getLang } from './i18n';
 
 export const VIEW_TYPE_SPACED_REVIEW = 'spaced-review-planning-view';
 
@@ -21,7 +22,7 @@ export class SpacedReviewView extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'Planning de revisions';
+		return t('viewDisplayText');
 	}
 
 	getIcon() {
@@ -50,24 +51,22 @@ export class SpacedReviewView extends ItemView {
 		this.renderPlanning(planningEl);
 	}
 
+	/**
+	 * Three stacked rows so nothing gets cramped in a narrow sidebar:
+	 * 1. category picker, centred
+	 * 2. "mark this file" button, centred
+	 * 3. empty-days toggle (left) / reload button (right)
+	 */
 	private renderToolbar(container: HTMLElement) {
 		const toolbar = container.createDiv({ cls: 'spaced-review-toolbar' });
-
-		const reloadBtn = toolbar.createEl('button', { cls: 'clickable-icon' });
-		setIcon(reloadBtn, 'refresh-cw');
-		reloadBtn.setAttribute('aria-label', 'Recharger depuis le fichier');
-		reloadBtn.addEventListener('click', async () => {
-			await this.plugin.reloadFromFile();
-			this.render();
-			new Notice('Planning recharge depuis le fichier');
-		});
 
 		if (this.selectedCategoryId === undefined) {
 			this.selectedCategoryId = this.plugin.settings.categories[0]?.id;
 		}
 
+		const row1 = toolbar.createDiv({ cls: 'spaced-review-toolbar-row spaced-review-toolbar-row-center' });
 		if (this.plugin.settings.categories.length > 0) {
-			const dropdown = new DropdownComponent(toolbar);
+			const dropdown = new DropdownComponent(row1);
 			for (const cat of this.plugin.settings.categories) {
 				dropdown.addOption(cat.id, cat.name);
 			}
@@ -77,34 +76,47 @@ export class SpacedReviewView extends ItemView {
 			});
 		}
 
-		const markBtn = toolbar.createEl('button', { text: 'Marquer ce fichier pour rappel', cls: 'mod-cta' });
+		const row2 = toolbar.createDiv({ cls: 'spaced-review-toolbar-row spaced-review-toolbar-row-center' });
+		const markBtn = row2.createEl('button', { text: t('markFileButton'), cls: 'mod-cta' });
 		markBtn.addEventListener('click', async () => {
 			const file = this.app.workspace.getActiveFile();
 			if (!file) {
-				new Notice('Aucun fichier actif');
+				new Notice(t('noticeNoActiveFile'));
 				return;
 			}
 			if (!this.selectedCategoryId) {
-				new Notice('Aucune categorie definie dans les parametres');
+				new Notice(t('noticeNoCategoriesView'));
 				return;
 			}
 			await this.plugin.markForReview(file.path, undefined, this.selectedCategoryId);
 		});
 
-		const toggleLabel = toolbar.createEl('label', { cls: 'spaced-review-toggle' });
+		const row3 = toolbar.createDiv({ cls: 'spaced-review-toolbar-row spaced-review-toolbar-row-split' });
+
+		const toggleLabel = row3.createEl('label', { cls: 'spaced-review-toggle' });
 		const toggle = toggleLabel.createEl('input', { type: 'checkbox' });
 		toggle.checked = this.plugin.settings.showEmptyDays;
-		toggleLabel.appendText(' jours vides');
+		toggleLabel.appendText(` ${t('toggleEmptyDaysLabel')}`);
 		toggle.addEventListener('change', async () => {
 			this.plugin.settings.showEmptyDays = toggle.checked;
 			await this.plugin.saveSettings();
 			this.render();
+		});
+
+		const reloadBtn = row3.createEl('button', { cls: 'clickable-icon' });
+		setIcon(reloadBtn, 'refresh-cw');
+		reloadBtn.setAttribute('aria-label', t('reloadAriaLabel'));
+		reloadBtn.addEventListener('click', async () => {
+			await this.plugin.reloadFromFile();
+			this.render();
+			new Notice(t('noticeReloaded'));
 		});
 	}
 
 	private renderPlanning(planningEl: HTMLElement) {
 		const planning = buildPlanning(this.plugin.items, this.plugin.settings.categories);
 		const today = todayISO();
+		const lang = getLang();
 
 		// Everything before today that hasn't been checked off, grouped
 		// together instead of one row per past day so an old backlog
@@ -122,7 +134,7 @@ export class SpacedReviewView extends ItemView {
 		if (stillDue.length > 0) {
 			const section = planningEl.createDiv({ cls: 'spaced-review-day is-overdue-section' });
 			section.setAttribute('data-date', today);
-			section.createDiv({ cls: 'spaced-review-day-label', text: 'Non complete' });
+			section.createDiv({ cls: 'spaced-review-day-label', text: t('dayLabelStillDue') });
 			const listEl = section.createDiv({ cls: 'spaced-review-day-list' });
 			for (const occ of stillDue) {
 				this.renderItemRow(listEl, occ, true);
@@ -144,7 +156,7 @@ export class SpacedReviewView extends ItemView {
 				if (cursor === today) dayEl.addClass('is-today');
 				dayEl.setAttribute('data-date', cursor);
 
-				const label = this.capitalize(frDayLabel(cursor)) + (cursor === today ? " (aujourd'hui)" : '');
+				const label = this.capitalize(dayLabel(cursor, lang)) + (cursor === today ? t('todaySuffix') : '');
 				dayEl.createDiv({ cls: 'spaced-review-day-label', text: label });
 
 				const listEl = dayEl.createDiv({ cls: 'spaced-review-day-list' });
@@ -167,8 +179,8 @@ export class SpacedReviewView extends ItemView {
 		const title = occ.item.header ?? occ.item.filePath.replace(/\.md$/, '');
 		row.createSpan({ cls: 'spaced-review-item-title', text: title });
 
-		if (showDate) row.createSpan({ cls: 'spaced-review-item-date', text: frDateShort(occ.date) });
-		if (occ.moved) row.createSpan({ cls: 'spaced-review-item-moved', text: ' deplace' });
+		if (showDate) row.createSpan({ cls: 'spaced-review-item-date', text: formatDateShort(occ.date) });
+		if (occ.moved) row.createSpan({ cls: 'spaced-review-item-moved', text: t('itemMovedSuffix') });
 
 		const checkbox = row.createEl('input', { type: 'checkbox', cls: 'spaced-review-item-checkbox' });
 		checkbox.checked = occ.completed;
@@ -178,8 +190,9 @@ export class SpacedReviewView extends ItemView {
 			await this.plugin.toggleCompleted(occ.item.id, occ.offset);
 		});
 
-		row.addEventListener('click', async () => {
-			await this.openOccurrence(occ);
+		row.addEventListener('click', async (evt: MouseEvent) => {
+			const newTab = evt.ctrlKey || evt.metaKey;
+			await this.openOccurrence(occ, newTab);
 		});
 
 		row.addEventListener('contextmenu', (evt) => {
@@ -187,7 +200,7 @@ export class SpacedReviewView extends ItemView {
 			const menu = new Menu();
 			menu.addItem((mi) =>
 				mi
-					.setTitle('Supprimer ce suivi de revision')
+					.setTitle(t('contextMenuDelete'))
 					.setIcon('trash')
 					.onClick(async () => {
 						await this.plugin.removeItem(occ.item.id);
@@ -199,13 +212,13 @@ export class SpacedReviewView extends ItemView {
 		this.makeDraggable(row, occ);
 	}
 
-	private async openOccurrence(occ: Occurrence) {
+	private async openOccurrence(occ: Occurrence, newTab: boolean) {
 		const file = this.app.vault.getAbstractFileByPath(occ.item.filePath);
 		if (!(file instanceof TFile)) {
-			new Notice(`Fichier introuvable : ${occ.item.filePath}`);
+			new Notice(t('noticeFileNotFound', { path: occ.item.filePath }));
 			return;
 		}
-		const leaf = this.app.workspace.getLeaf(false);
+		const leaf = this.app.workspace.getLeaf(newTab);
 		await leaf.openFile(file);
 
 		if (occ.item.header) {

@@ -1,7 +1,8 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type SpacedReviewPlugin from './main';
 import { ReviewCategory } from './types';
-import { generateId } from './utils';
+import { generateId, normalizeNotePath } from './utils';
+import { t } from './i18n';
 
 export class SpacedReviewSettingTab extends PluginSettingTab {
 	plugin: SpacedReviewPlugin;
@@ -14,25 +15,22 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.createEl('h2', { text: 'Revisions espacees' });
+		containerEl.createEl('h2', { text: t('settingsTitle') });
 
 		new Setting(containerEl)
-			.setName('Fichier de sauvegarde')
-			.setDesc(
-				'Fichier Markdown du vault ou sont stockes les rappels. Vous pouvez l\'ouvrir et l\'editer ' +
-					'directement. ' +
-					'Le plugin n\'ecrit que dans une section marquée du fichier et ne touche jamais au reste ' +
-					'même si vous pointez vers une note existante.\n' +
-					'Attention : pensez à ajouter .md à la fin du fichier.'
-			)
+			.setName(t('settingsSaveFileName'))
+			.setDesc(t('settingsSaveFileDesc'))
 			.addText((text) => {
 				text.setValue(this.plugin.settings.vaultFilePath);
 				// Committed on blur rather than per-keystroke: writing on every
 				// character typed would otherwise touch a different (partial,
 				// unintended) path on each keystroke.
 				text.inputEl.addEventListener('blur', async () => {
-					const newPath = text.inputEl.value.trim();
-					if (!newPath || newPath === this.plugin.settings.vaultFilePath) return;
+					const raw = text.inputEl.value.trim();
+					if (!raw) return;
+					const newPath = normalizeNotePath(raw); // adds ".md" if you didn't type an extension, like Obsidian itself does
+					text.setValue(newPath);
+					if (newPath === this.plugin.settings.vaultFilePath) return;
 					this.plugin.settings.vaultFilePath = newPath;
 					// Adopt whatever the plugin already recognises at the new
 					// path (if anything) instead of discarding it.
@@ -42,20 +40,20 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName('Afficher les jours vides')
-			.setDesc("Affiche aussi les jours sans révision prevue, pour pouvoir y déposer un élément déplacé.")
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.showEmptyDays).onChange(async (v) => {
+			.setName(t('settingsShowEmptyDaysName'))
+			.setDesc(t('settingsShowEmptyDaysDesc'))
+			.addToggle((tg) =>
+				tg.setValue(this.plugin.settings.showEmptyDays).onChange(async (v) => {
 					this.plugin.settings.showEmptyDays = v;
 					await this.plugin.saveSettings();
 				})
 			);
 
 		new Setting(containerEl)
-			.setName("Afficher tous les jours jusqu'au dernier rappel")
-			.setDesc('Si désactivé, seule une fenêtre de jours (ci-dessous) est affichée.')
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.showAllUntilLast).onChange(async (v) => {
+			.setName(t('settingsShowAllUntilLastName'))
+			.setDesc(t('settingsShowAllUntilLastDesc'))
+			.addToggle((tg) =>
+				tg.setValue(this.plugin.settings.showAllUntilLast).onChange(async (v) => {
 					this.plugin.settings.showAllUntilLast = v;
 					await this.plugin.saveSettings();
 					this.display();
@@ -63,7 +61,7 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 			);
 
 		if (!this.plugin.settings.showAllUntilLast) {
-			new Setting(containerEl).setName('Fenêtre (en jours)').addText((text) =>
+			new Setting(containerEl).setName(t('settingsHorizonName')).addText((text) =>
 				text.setValue(String(this.plugin.settings.horizonDays)).onChange(async (v) => {
 					const n = parseInt(v, 10);
 					if (!isNaN(n) && n > 0) {
@@ -74,11 +72,9 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 			);
 		}
 
-		containerEl.createEl('h3', { text: 'Categories de révision' });
+		containerEl.createEl('h3', { text: t('settingsCategoriesTitle') });
 		containerEl.createEl('p', {
-			text:
-				'Chaque catégorie a un nom, une lettre unique (affichee devant le numero de repetition, ' +
-				'ex: "m3"), et une liste de delais en jours (J+...).',
+			text: t('settingsCategoriesDesc'),
 			cls: 'setting-item-description',
 		});
 
@@ -90,7 +86,7 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 		}
 		if (duplicateLetters.size > 0) {
 			containerEl.createEl('p', {
-				text: `Attention: lettre(s) utilisée(s) par plusieurs catégories: ${Array.from(duplicateLetters).join(', ')}`,
+				text: t('settingsDuplicateLettersWarning', { letters: Array.from(duplicateLetters).join(', ') }),
 				cls: 'mod-warning',
 			});
 		}
@@ -100,10 +96,10 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl).addButton((btn) =>
-			btn.setButtonText('+ Ajouter une categorie').onClick(async () => {
+			btn.setButtonText(t('settingsAddCategory')).onClick(async () => {
 				this.plugin.settings.categories.push({
 					id: generateId(),
-					name: 'Nouvelle categorie',
+					name: t('settingsNewCategoryName'),
 					letter: 'N',
 					offsets: [7],
 				});
@@ -117,17 +113,17 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 		const box = containerEl.createDiv({ cls: 'spaced-review-category-box' });
 
 		new Setting(box)
-			.setName('Nom / lettre')
-			.addText((t) => {
-				t.setValue(cat.name).onChange(async (v) => {
+			.setName(t('settingsCategoryNameLetterLabel'))
+			.addText((tc) => {
+				tc.setValue(cat.name).onChange(async (v) => {
 					cat.name = v;
 					await this.plugin.saveSettings();
 				});
 			})
-			.addText((t) => {
-				t.inputEl.maxLength = 3;
-				t.inputEl.style.width = '3.5em';
-				t.setValue(cat.letter).onChange(async (v) => {
+			.addText((tc) => {
+				tc.inputEl.maxLength = 3;
+				tc.inputEl.style.width = '3.5em';
+				tc.setValue(cat.letter).onChange(async (v) => {
 					cat.letter = v.slice(0, 3) || cat.letter;
 					await this.plugin.saveSettings();
 				});
@@ -135,7 +131,7 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 			.addExtraButton((b) =>
 				b
 					.setIcon('trash')
-					.setTooltip('Supprimer la categorie')
+					.setTooltip(t('settingsCategoryDeleteTooltip'))
 					.onClick(async () => {
 						this.plugin.settings.categories = this.plugin.settings.categories.filter((c) => c.id !== cat.id);
 						await this.plugin.saveSettings();
@@ -144,11 +140,11 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 			);
 
 		const offsetsRow = box.createDiv({ cls: 'spaced-review-offsets-row' });
-		offsetsRow.createSpan({ text: 'Rappels (J+) : ' });
+		offsetsRow.createSpan({ text: t('settingsOffsetsLabel') });
 		cat.offsets.forEach((offset, idx) => {
 			// Each number input + its own remove button live in a tight
 			// "group" so they read as one unit, with a bigger gap between
-			// groups than within one - avoids the ambiguous even spacing.
+			// groups than within one.
 			const group = offsetsRow.createDiv({ cls: 'spaced-review-offset-group' });
 			const input = group.createEl('input', { type: 'number', value: String(offset) });
 			input.style.width = '4.5em';
@@ -158,6 +154,11 @@ export class SpacedReviewSettingTab extends PluginSettingTab {
 					cat.offsets[idx] = n;
 					cat.offsets.sort((a, b) => a - b);
 					await this.plugin.saveSettings();
+					// Re-render: sorting just moved this value to a different
+					// position, so the DOM must be rebuilt now, otherwise the
+					// *next* click on any "x" button - captured with the old,
+					// now-stale idx - would delete the wrong offset.
+					this.display();
 				}
 			});
 			const removeBtn = group.createEl('button', { text: 'x' });

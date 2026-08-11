@@ -7,11 +7,24 @@
 
 .spaced-review-toolbar {
 	display: flex;
-	align-items: center;
-	gap: 6px;
+	flex-direction: column;
+	gap: 8px;
 	padding: 8px;
 	border-bottom: 1px solid var(--background-modifier-border);
-	flex-wrap: wrap;
+}
+
+.spaced-review-toolbar-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.spaced-review-toolbar-row-center {
+	justify-content: center;
+}
+
+.spaced-review-toolbar-row-split {
+	justify-content: space-between;
 }
 
 .spaced-review-toggle {
@@ -19,7 +32,6 @@
 	align-items: center;
 	gap: 4px;
 	font-size: var(--font-ui-smaller);
-	margin-left: auto;
 	white-space: nowrap;
 }
 

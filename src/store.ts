@@ -1,6 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { ReviewItem, ReviewOverride, ReviewCategory } from './types';
-import { generateId, frDateShort, parseFrDate } from './utils';
+import { generateId, formatDateShort, parseShortDate, toWikilinkPath, normalizeNotePath } from './utils';
 
 /**
  * The plugin never touches anything in the save file outside of these
@@ -22,12 +22,12 @@ const END_MARKER = '<!-- spaced-review-plugin:end -->';
  * simply skipped.
  *
  *   [[Note#Header]]
- *   added to Mineure on the 01/08/2026
+ *   Added to Mineure on the 01/08/2026
  *   - 2 to 10/08/2026
  *   > Completed until J+20
  *
  *   [[Autre note]]
- *   added to Majeure on the 01/07/2026
+ *   Added to Majeure on the 01/07/2026
  *
  * - Link line: a wikilink to the file, or file#header for a header.
  * - "added to <category> on the <DD/MM/YYYY>": when it was marked, and
@@ -89,7 +89,7 @@ export function parseItemsFromContent(content: string, categories: ReviewCategor
 			flush();
 			const inner = entryMatch[1];
 			const hashIdx = inner.indexOf('#');
-			const filePath = (hashIdx >= 0 ? inner.slice(0, hashIdx) : inner).trim();
+			const filePath = normalizeNotePath((hashIdx >= 0 ? inner.slice(0, hashIdx) : inner).trim());
 			const header = hashIdx >= 0 ? inner.slice(hashIdx + 1).trim() : undefined;
 			draft = { filePath, header, overrides: [], completedThroughOffset: 0 };
 			continue;
@@ -100,7 +100,7 @@ export function parseItemsFromContent(content: string, categories: ReviewCategor
 		const addedMatch = line.match(ADDED_RE);
 		if (addedMatch) {
 			draft.categoryName = addedMatch[1].trim();
-			const iso = parseFrDate(addedMatch[2]);
+			const iso = parseShortDate(addedMatch[2]);
 			if (iso) draft.markedDate = iso;
 			continue;
 		}
@@ -108,7 +108,7 @@ export function parseItemsFromContent(content: string, categories: ReviewCategor
 		const moveMatch = line.match(MOVE_RE);
 		if (moveMatch) {
 			const idx = Number(moveMatch[1]) - 1;
-			const iso = parseFrDate(moveMatch[2]);
+			const iso = parseShortDate(moveMatch[2]);
 			if (iso && idx >= 0) draft.overrides.push({ index: idx, date: iso });
 			continue;
 		}
@@ -128,10 +128,11 @@ export function parseItemsFromContent(content: string, categories: ReviewCategor
 }
 
 function serializeItem(item: ReviewItem, categoryName: string): string {
-	const link = item.header ? `[[${item.filePath}#${item.header}]]` : `[[${item.filePath}]]`;
-	const lines = [link, `added to ${categoryName} on the ${frDateShort(item.markedDate)}`];
+	const displayPath = toWikilinkPath(item.filePath);
+	const link = item.header ? `[[${displayPath}#${item.header}]]` : `[[${displayPath}]]`;
+	const lines = [link, `Added to ${categoryName} on the ${formatDateShort(item.markedDate)}`];
 	for (const o of item.overrides) {
-		lines.push(`- ${o.index + 1} to ${frDateShort(o.date)}`);
+		lines.push(`- ${o.index + 1} to ${formatDateShort(o.date)}`);
 	}
 	if (item.completedThroughOffset > 0) {
 		lines.push(`> Completed until J+${item.completedThroughOffset}`);

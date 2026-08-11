@@ -5,6 +5,7 @@ import { SpacedReviewView, VIEW_TYPE_SPACED_REVIEW } from './view';
 import { loadItemsFromVaultFile, saveItemsToVaultFile } from './store';
 import { generateId, todayISO } from './utils';
 import { CategoryPickModal } from './modal';
+import { t } from './i18n';
 
 export default class SpacedReviewPlugin extends Plugin {
 	settings: SpacedReviewSettings;
@@ -20,25 +21,25 @@ export default class SpacedReviewPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_SPACED_REVIEW, (leaf) => new SpacedReviewView(leaf, this));
 
-		this.addRibbonIcon('calendar-clock', 'Planning de revisions espacees', () => {
+		this.addRibbonIcon('calendar-clock', t('ribbonTooltip'), () => {
 			this.activateView();
 		});
 
 		this.addCommand({
 			id: 'open-spaced-review-planning',
-			name: 'Ouvrir le planning de revisions',
+			name: t('cmdOpenPlanning'),
 			callback: () => this.activateView(),
 		});
 
 		this.addCommand({
 			id: 'mark-active-file-for-review',
-			name: 'Marquer le fichier actif pour rappel espace',
+			name: t('cmdMarkActiveFile'),
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!file) return false;
 				if (checking) return true;
 				if (this.settings.categories.length === 0) {
-					new Notice('Aucune categorie definie dans les parametres.');
+					new Notice(t('noticeNoCategoriesCmd'));
 					return true;
 				}
 				new CategoryPickModal(this.app, this.settings.categories, (catId) => {
@@ -48,7 +49,7 @@ export default class SpacedReviewPlugin extends Plugin {
 			},
 		});
 
-		// Right-click on a heading (in edit mode) -> "Marquer pour rappel espace".
+		// Right-click on a heading (in edit mode) -> "Mark for spaced review".
 		this.registerEvent(
 			this.app.workspace.on('editor-menu', (menu, editor, view) => {
 				const file = view.file;
@@ -61,7 +62,7 @@ export default class SpacedReviewPlugin extends Plugin {
 					const cat = this.settings.categories[0];
 					menu.addItem((item) =>
 						item
-							.setTitle(`Marquer pour rappel espace (${cat.name})`)
+							.setTitle(t('menuMarkForReviewCategory', { name: cat.name }))
 							.setIcon('calendar-clock')
 							.onClick(() => this.markForReview(file.path, header, cat.id))
 					);
@@ -69,7 +70,7 @@ export default class SpacedReviewPlugin extends Plugin {
 				}
 
 				menu.addItem((item) => {
-					item.setTitle('Marquer pour rappel espace').setIcon('calendar-clock');
+					item.setTitle(t('menuMarkForReview')).setIcon('calendar-clock');
 					// setSubmenu() gives a nested menu of categories to pick from.
 					// Falls back to the first category if the installed Obsidian
 					// API typings/version don't expose it.
@@ -170,7 +171,7 @@ export default class SpacedReviewPlugin extends Plugin {
 		this.items.push(item);
 		await this.writeItemsToFile();
 		this.refreshView();
-		new Notice(header ? `Section marquee pour rappel : ${header}` : 'Fichier marque pour rappel');
+		new Notice(header ? t('noticeMarkedHeader', { header }) : t('noticeMarkedFile'));
 	}
 
 	async moveOccurrence(itemId: string, occurrenceIndex: number, newDateISO: string) {

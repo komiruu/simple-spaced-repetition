@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from 'obsidian';
 import { ReviewCategory } from './types';
+import { t } from './i18n';
 
 export class CategoryPickModal extends Modal {
 	private categories: ReviewCategory[];
@@ -13,11 +14,11 @@ export class CategoryPickModal extends Modal {
 
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.createEl('h3', { text: 'Choisir une categorie de revision' });
+		contentEl.createEl('h3', { text: t('modalTitle') });
 		for (const cat of this.categories) {
 			new Setting(contentEl).setName(`${cat.name} (${cat.letter})`).addButton((b) =>
 				b
-					.setButtonText('Choisir')
+					.setButtonText(t('modalChooseButton'))
 					.setCta()
 					.onClick(() => {
 						this.onPick(cat.id);
