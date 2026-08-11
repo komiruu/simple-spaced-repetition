@@ -1,92 +1,135 @@
-# Obsidian Sample Plugin
+# Plugin de révisions espacées — intégration
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Le code est validé : compilé (`tsc -noEmit -skipLibCheck`) contre les vrais
+types Obsidian, bundlé avec esbuild comme le fait le script de build du
+sample-plugin, et le parseur/sérialiseur du fichier de sauvegarde est
+couvert par des tests automatisés (round-trip, résilience à un fichier
+"sale", logique de complétion, et surtout non-destruction d'un fichier
+existant) avant livraison.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## 1. Copier les fichiers
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+Copiez ces 8 fichiers **à la racine** de votre clone de `obsidian-sample-plugin`
+(à côté du `main.ts` existant, en écrasant celui-ci) :
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
-
-## First time developing plugins?
-
-Quick starting guide for new plugin devs:
-
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
-
-## Releasing new releases
-
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+```
+main.ts
+types.ts
+utils.ts
+scheduler.ts
+store.ts
+settings.ts
+view.ts
+modal.ts
+styles.css
 ```
 
-If you have multiple URLs, you can also do:
+Aucun changement n'est nécessaire dans `esbuild.config.mjs` ou `tsconfig.json`.
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
+## 2. manifest.json
+
+Assurez-vous que `"isDesktopOnly": false` est présent.
+
+## 3. Build
+
+```bash
+npm install
+npm run dev     # ou "npm run build" pour la version de prod
 ```
 
-## API Documentation
+## Ce qui a changé dans cette révision
 
-See https://docs.obsidian.md
+- **Correction : le renommage de heading peut être suivi automatiquement.**
+  Mon README précédent disait que non — c'est faux : c'est le cas si vous
+  utilisez la commande dédiée d'Obsidian "Renommer le titre" (clic droit sur
+  le heading, ou la commande associée) plutôt que d'éditer le texte
+  directement. Dans ce cas Obsidian met aussi à jour le lien dans notre
+  fichier de sauvegarde, comme pour un renommage de fichier.
+
+- **Lien moins voyant.** L'entrée n'est plus préfixée par `## ` (qui
+  s'affichait en gros titre) : elle commence directement par
+  `[[Note#Header]]`, une ligne de texte normale. Une entrée est détectée dès
+  qu'une ligne contient un wikilink en début de ligne (avec ou sans `#...`
+  devant, pour rester compatible si vous ajoutez vous-même un niveau de
+  titre).
+
+- **Complétion : "watermark" en J+, plus un numéro de répétition.** Le
+  problème que vous avez soulevé était réel : un numéro de répétition (1,
+  2, 3...) se décale si vous supprimez un J+ intermédiaire dans une
+  catégorie, et la case cochée pointerait alors sur la mauvaise répétition.
+  Solution retenue : `> Completed until J+<n>` — on enregistre le J+
+  (délai en jours) de la répétition la plus tardive cochée, pas sa
+  position. Toute répétition dont le J+ est ≤ cette valeur est considérée
+  faite. Concrètement :
+  - Cocher `m3` (ex. J+20) coche aussi automatiquement `m1` et `m2` s'ils
+    ont un J+ inférieur (logique : si vous avez fait la révision à J+20,
+    les précédentes sont forcément faites aussi).
+  - Supprimer ou ajouter un J+ intermédiaire ailleurs dans la liste ne
+    déplace rien : le watermark reste attaché à la valeur J+20 elle-même,
+    pas à une position dans le tableau.
+  - Décocher une répétition ramène le watermark juste en dessous de son
+    J+, ce qui décoche aussi tout ce qui était après elle.
+  - J'ai choisi de baser ça sur le J+ (le délai configuré) plutôt que sur
+    la date affichée : un déplacement par glisser-déposer ne change que la
+    date affichée, pas le J+ d'origine, donc déplacer une révision ne
+    décoche jamais rien par accident. Testé avec suppression d'un J+
+    intermédiaire en cours de route : la case cochée reste correcte.
+
+- **Protection anti-écrasement du fichier.** C'est le point le plus
+  important : plus aucun code du plugin ne peut effacer du contenu qui ne
+  lui appartient pas.
+  - Toutes les données du plugin sont maintenant encadrées par deux
+    marqueurs invisibles en mode lecture (`<!-- spaced-review-plugin:start
+    -->` / `... :end -->`) dans le fichier de sauvegarde.
+  - À l'écriture : si les marqueurs existent déjà, **seul** le texte entre
+    eux est remplacé — tout ce qui est avant/après (vos propres notes) est
+    conservé tel quel. S'ils n'existent pas encore (fichier neuf, ou note
+    existante que vous pointez pour la première fois), le bloc du plugin
+    est **ajouté à la fin**, jamais en écrasant.
+  - Résultat concret sur votre cas : pointer le chemin du fichier de
+    sauvegarde vers une note déjà existante n'efface plus son contenu — le
+    plugin ajoute ses infos à la fin, puis ne touchera plus que sa propre
+    section aux écritures suivantes.
+  - Le champ "Fichier de sauvegarde" dans les paramètres ne valide
+    maintenant qu'à la perte du focus (pas à chaque frappe), pour éviter
+    d'écrire accidentellement dans un chemin partiel pendant que vous
+    tapez. Au changement de chemin, le plugin relit d'abord ce qu'il
+    reconnaît déjà à ce nouvel emplacement (s'il y en a) avant de continuer
+    à écrire dessus.
+  - Testé avec un faux vault en mémoire : écrire deux fois de suite dans
+    une note contenant déjà du texte personnel préserve ce texte intégralement.
+
+- **Rechargement automatique** (déjà en place, toujours actif) : le plugin
+  écoute les modifications du fichier de sauvegarde et recharge les items
+  en mémoire dès qu'il change sur le disque, plus un bouton ↻ pour forcer
+  une relecture manuelle, plus un rechargement systématique à l'ouverture
+  du panneau.
+
+## Utilisation
+
+- **Marquer un fichier entier** : bouton "Marquer ce fichier pour rappel"
+  en haut du panneau, avec le menu déroulant de catégorie à côté.
+- **Marquer un header** : en mode édition, clic droit sur la ligne du
+  header → "Marquer pour rappel espacé".
+- **Planning** : badge `m3` = catégorie "m" (Mineure), 3ᵉ répétition.
+- **Cocher/décocher** une répétition : case à cocher à droite de chaque
+  ligne (voir la logique de watermark ci-dessus).
+- **Déplacer une révision** : glisser-déposer sur un autre jour.
+- **Ouvrir la note** : cliquer (sans glisser) un élément.
+- **Supprimer un suivi** : clic droit → "Supprimer ce suivi de révision".
+- **Recharger** : icône ↻ en haut du panneau.
+
+## Limites connues
+
+- Renommer le **texte** d'un heading directement (sans passer par la
+  commande dédiée d'Obsidian) n'est pas suivi automatiquement : le lien
+  devient obsolète. Le fichier restant un Markdown normal, vous pouvez
+  corriger la ligne `[[...]]` à la main sans perdre la date ni l'historique
+  qui suivent juste en dessous.
+- Supprimer une catégorie encore utilisée par des items existants les rend
+  orphelins (disparaissent du planning) plutôt que de les réassigner
+  automatiquement — renommez plutôt que de supprimer si des révisions sont
+  en cours dessus.
+- Si le fichier de sauvegarde est modifié en même temps par deux sources à
+  la fraction de seconde près (vous tapez pendant que le plugin écrit),
+  c'est le dernier à écrire qui gagne, comme pour tout fichier partagé.

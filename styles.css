@@ -1,8 +1,144 @@
-/*
+.spaced-review-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.spaced-review-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-wrap: wrap;
+}
 
-If your plugin does not need CSS, delete this file.
+.spaced-review-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: var(--font-ui-smaller);
+	margin-left: auto;
+	white-space: nowrap;
+}
 
-*/
+.spaced-review-planning {
+	overflow-y: auto;
+	flex: 1;
+	padding: 8px;
+}
+
+.spaced-review-day {
+	margin-bottom: 10px;
+}
+
+.spaced-review-day-label {
+	font-weight: 600;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	padding: 2px 4px;
+	text-transform: capitalize;
+}
+
+.spaced-review-day.is-today .spaced-review-day-label {
+	color: var(--text-accent);
+}
+
+.spaced-review-day.is-overdue-section .spaced-review-day-label {
+	color: var(--text-error);
+}
+
+.spaced-review-day-list {
+	min-height: 12px;
+	border-radius: 4px;
+	padding: 2px;
+}
+
+.spaced-review-day-list.is-drop-target {
+	background-color: var(--background-modifier-hover);
+	outline: 1px dashed var(--interactive-accent);
+}
+
+.spaced-review-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 6px;
+	border-radius: 4px;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+
+.spaced-review-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.spaced-review-item.is-dragging {
+	opacity: 0.3;
+}
+
+.spaced-review-item-badge {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-accent);
+	min-width: 2.2em;
+}
+
+.spaced-review-item-title {
+	flex: 1;
+	font-size: var(--font-ui-small);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.spaced-review-item-date {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.spaced-review-item-moved {
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+.spaced-review-item-checkbox {
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.spaced-review-item.is-completed .spaced-review-item-title {
+	text-decoration: line-through;
+	color: var(--text-faint);
+}
+
+.spaced-review-drag-ghost {
+	background-color: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	box-shadow: var(--shadow-s);
+	opacity: 0.9;
+	max-width: 260px;
+}
+
+.spaced-review-category-box {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px;
+	margin-bottom: 10px;
+}
+
+.spaced-review-offsets-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.spaced-review-offset-group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
