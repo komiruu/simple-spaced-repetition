@@ -1,9 +1,9 @@
 {
-	"id": "simpler-spaced-repetition",
-	"name": "Simpler Spaced Repetition",
+	"id": "simple-spaced-repetition",
+	"name": "Simple Spaced Repetition",
 	"version": "1.0.3",
-	"minAppVersion": "1.0.0",
-	"description": "Simpler is sometimes better",
+	"minAppVersion": "1.13.6",
+	"description": "Add your notes and headings as recall events to a planning for easier long-term memorization.",
 	"author": "Komiru",
 	"authorUrl": "https://github.com/komiruu",
 	"fundingUrl": "https://ko-fi.com/komiru",
